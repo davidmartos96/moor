@@ -25,11 +25,19 @@ class _MoorServer {
 
   _MoorServer(DatabaseOpener opener) : server = Server() {
     server.openedConnections.listen((connection) {
-      connection.setRequestHandler(_handleRequest);
+      connection.setRequestHandler((r) => _handleRequest(connection, r));
     });
     connection = opener();
     _dbUser = _IsolateDelegatedUser(this);
   }
+
+  /// The executor running the special beforeOpen callback, if that callback
+  /// is currently running. Otherwise null.
+  QueryExecutor _beforeOpenExecutor;
+
+  /// The client currently running the beforeOpen callback, or null if that
+  /// callback is not currently active.
+  IsolateCommunication _beforeOpenClient;
 
   /// Returns the first connected client, or null if no client is connected.
   IsolateCommunication get firstClient {
@@ -37,7 +45,7 @@ class _MoorServer {
     return channels.isEmpty ? null : channels.first;
   }
 
-  dynamic _handleRequest(Request r) {
+  dynamic _handleRequest(IsolateCommunication channel, Request r) {
     final payload = r.payload;
 
     if (payload is _NoArgsRequest) {
